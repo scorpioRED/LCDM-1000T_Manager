@@ -1,0 +1,27 @@
+{
+  "name": "dispenser",
+  "version": "1.0.0",
+  "description": "communication with dispenser LCDM-1000",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scorpioRED/LCDM-1000T_Manager.git"
+  },
+  "keywords": [
+    "Cash",
+    "Dispenser",
+    "LCDM-1000"
+  ],
+  "author": "scorpio",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/scorpioRED/LCDM-1000T_Manager/issues"
+  },
+  "homepage": "https://github.com/scorpioRED/LCDM-1000T_Manager#readme",
+  "dependencies": {
+    "serialport": "^6.1.1"
+  }
+}
