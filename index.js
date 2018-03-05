@@ -128,6 +128,7 @@ class DispenserManager {
 
                     let toResolve = self._responseParser(response);
                     counter = 0;
+		    self.port.removeAllListeners(['data']);
                     resolve(toResolve);
                 }
 
