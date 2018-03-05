@@ -1,5 +1,8 @@
+let SerialPort = require("serialport");
+
 class DispenserManager {
     constructor(path) {
+        this.status = " --- not set -----";
         this.port = new SerialPort(path, {
             baudRate: 9600,
             dataBit: 8,
@@ -8,24 +11,16 @@ class DispenserManager {
 
         this.port.open((err) => {
             if (err) {
-                return console.log('Error opening port: ', err.message);
+                return console.log("Error opening port: ", err.message);
             }
 
         });
 
 
-    }
 
 
-    _billQountity(dec) {
-        dec = String(dec);
-        return '0x' + dec.charCodeAt(0).toString(16); // return hex;
     }
 
-    _xorVerificatedNumber(prefixWithCmd) { // ['0x04','0x50','0x02','0x76','0x03'] exeple of argument
-        // console.log('arg to xor -> ', prefixWithCmd);
-        return prefixWithCmd.join('').replace(/0x/g, "") + prefixWithCmd.reduce((a, b) => a ^ b).toString(16) // return in hex
-    }
 
     _cmdMap(code) {
         let cmds = {
@@ -70,6 +65,16 @@ class DispenserManager {
         return code + " / " + errors[code];
     }
 
+
+    _billQountity(dec) {
+        dec = String(dec);
+        return "0x" + dec.charCodeAt(0).toString(16); // return hex;
+    }
+
+    _xorVerificatedNumber(prefixWithCmd) { // ['0x04','0x50','0x02','0x76','0x03'] exeple of argument
+        return prefixWithCmd.join('').replace(/0x/g, "") + prefixWithCmd.reduce((a, b) => a ^ b).toString(16) // return in hex
+    }
+
     _responseParser(response, cmdTitle) {
         let asciiToDecStr = (val) => {
             return String(val).split('')[1];
@@ -84,7 +89,7 @@ class DispenserManager {
 
         }
 
-        if (response[3] == "45") { // if withdraw
+        if (response[3] == "45") { // if deposit
             parsedResponse.firstSensorBills = asciiToDecStr(response[4]) + asciiToDecStr(response[5])
 
             parsedResponse.dispenseQountity = asciiToDecStr(response[6]) + asciiToDecStr(response[7])
@@ -97,10 +102,22 @@ class DispenserManager {
             parsedResponse.bcc = response[13]
         }
 
-        if (response[3] == "44") { // purge
+        if (response[3] == "44") { // if purge
             parsedResponse.error = this._errorMap(response[4])
             parsedResponse.ext = response[5]
             parsedResponse.bcc = response[6]
+        }
+
+        if (response[3] == "46") { // if status
+
+            parsedResponse.someElse = response[4]
+            parsedResponse.error = this._errorMap(response[5])
+
+            parsedResponse.sensorO = this._errorMap(response[6])
+            parsedResponse.sensorI = response[7]
+
+            parsedResponse.ext = response[8]
+            parsedResponse.bcc = response[9]
         }
 
 
@@ -109,26 +126,27 @@ class DispenserManager {
     }
 
     _onRecivedData(data) { // now not using
-        console.log(counter, ' in class Data: ', data, data.toString('hex'));
+        console.log(counter, " in class Data: ", data, data.toString("hex"));
     }
 
-    _runCMD(cmd) {
+    _runCMD (cmd) {
         let self = this;
         let counter = 0;
         let response = "";
+        let emiters;
         return new Promise((resolve, reject) => {
             self.port.write(cmd);
-            self.port.on('data', (data) => {
+            self.port.on("data", (data) => {
                 counter++;
-                console.log(counter,' in class Data: ',data);
-                response = counter > 1 && counter < 4 ? response + data.toString('hex') : "";
+                // console.log(counter,' in class Data: ',data);
+                response = counter > 1 && counter < 4 ? response + data.toString("hex") : "";
                 if (counter == 3) {
-                    console.log("send ACK answer for response");
-                    self.port.write(Buffer.from("06", "hex"));
+                    // console.log("send ACK answer for response");
+                    self.port.write(Buffer.from("06", "hex")); // send ACK answer for response
 
                     let toResolve = self._responseParser(response);
                     counter = 0;
-		    self.port.removeAllListeners(['data']);
+                    self.port.removeAllListeners(["data"]);
                     resolve(toResolve);
                 }
 
@@ -138,35 +156,18 @@ class DispenserManager {
 
     purge() {
         let dataToSend = Buffer.from("045002440311", "hex");
-        return this._runCMD(dataToSend, "purge")
+        return this._runCMD(dataToSend);
     }
 
     dispense(quontity) {
         if (quontity.length < 2) quontity = "0" + quontity;
-        let dataToSend = Buffer.from(this._xorVerificatedNumber(['0x04', '0x50', '0x02', '0x45', this._billQountity(quontity[0]), this._billQountity(quontity[1]), '0x03']), "hex");
-        return this._runCMD(dataToSend)
-
+        let dataToSend = Buffer.from(this._xorVerificatedNumber(['0x04', '0x50', '0x02', '0x45', this._billQountity(quontity[0]), this._billQountity(quontity[1]), "0x03"]), "hex");
+        return this._runCMD(dataToSend);
     }
+
 
 
 }
 
 
-// usage
-
-let dispenser = new DispenserManager("/dev/ttyS0");
-
-// dispenser.dispense("3").then(answer =>{
-//     console.log("answer is ->> ", answer)
-// })
-
-
-dispenser.purge().then(purgeAnswer => {
-    console.log("purge answer is ->> ", purgeAnswer);
-    dispenser.dispense("2").then(depositAnswer => {
-        console.log("deposit answer is ->> ", depositAnswer);
-    })
-})
-
-
-
+module.exports = DispenserManager
